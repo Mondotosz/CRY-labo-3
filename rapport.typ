@@ -131,3 +131,29 @@ def main():
     else:
         print(f"found : {res}")
 ```
+
+=== Cassage grace aux racines
+
+#task(title: "Todo", [
+  Break it using the roots. The goal is to use $ZZ_p^* times ZZ_q^*$ and find
+  a multiple of p or q.
+])
+
+=== Sur quel problème est basé la construction ?
+
+#task([
+  todo
+])
+
+=== A quoi sert la redondance ?
+
+A priori, la norme iso7816 pour le padding ne définit pas de taille nécessaire.
+Le padding fonctionne en ajoutant un Byte `0x80` suivi de Bytes `0x0` jusqu'à
+avoir la bonne taille. Il est possible qu'une racine nous donne un résultat
+conforme au padding (on a $1/256$ chance que le dernier byte soit `0x80`) qui
+serait un faux positif. Il faut donc verifier que notre padding fait au minimum
+`REDUNDANCY` Bytes pour considérer le résultat comme valide.
+
+#task([
+  Check avec le prof si on devrait utiliser la redondance lors du déchiffrement.
+])
