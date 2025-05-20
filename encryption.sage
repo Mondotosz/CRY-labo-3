@@ -4,13 +4,9 @@ from Crypto.Signature.pss import MGF1
 from Crypto.Hash import SHA256
 from Crypto.Util.strxor import strxor
 from Crypto.Util.Padding import pad, unpad
-from sage.functions.log import log
-from sage.arith.misc import crt, random_prime
 
-from sage.rings.finite_rings.integer_mod_ring import IntegerModRing
-from sage.rings.integer import Integer
+from sage.all import Integer, crt, random_prime, log, Integers
 
-Integers = IntegerModRing
 
 # params
 n = 15224501632483840743864161085970356975498869981090878499746618717295161176551026639470648649023090247579390266188723822368295340786531545133485378278983061503080008535976820385686949351077093099997077922789136590750224535107133167704773360578246126309966130807544634201034719092010659530170703799443298011388196939719629779105190360388503090267049102718094391964476742332128301025273180513623496364494030737921882565984978167276366001443912916355135910749312242093025962936110806556912086235867048525555409663088321451366674805338687723269459826865996328495397040287068677621415269899989944844982920607325373683244937
@@ -74,11 +70,11 @@ def decrypt(c: int, p: int, q: int) -> bytes:
     (p_c, q_c) = (P(c), Q(c))
     (p_roots, q_roots) = (p_c.sqrt(all=True), q_c.sqrt(all=True))
 
-    roots: list[Integer] = []
+    roots: list[bytes] = []
     for pr in p_roots:
         for qr in q_roots:
-            roots.append(crt([pr.lift(), qr.lift()], [p, q]))
-    roots = [m.to_bytes((m.nbits() + 7) // 8, "little") for m in roots]
+            root = crt([pr.lift(), qr.lift()], [p, q])
+            roots.append(root.to_bytes((root.nbits() + 7) // 8, "little"))
 
     # try each root until unpad doesn't throw
     for root in roots:
@@ -88,7 +84,7 @@ def decrypt(c: int, p: int, q: int) -> bytes:
             h = mgf(r, BYTE_LEN_MESSAGE_PART)
             m = strxor(m, h)
             return unpad(m, BYTE_LEN_MESSAGE_PART, style="iso7816")
-        except Exception as e:
+        except Exception as _:
             continue
     raise Exception("does not work :(")
 
@@ -97,8 +93,12 @@ def main():
     (p, q, n) = keyGen()
     m = b"Your heart's been aching but you're too shy to say it."
     c = encrypt(m, n)
-    print(f"cipher: {c}")
-    print(decrypt(c, p, q))
+    res = decrypt(c, p, q)
+    if m == res:
+        print("success")
+        print(res)
+    else:
+        print(f"found : {res}")
 
 
 if __name__ == "__main__":
