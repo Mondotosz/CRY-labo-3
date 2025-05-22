@@ -1,10 +1,11 @@
+from typing import Tuple
 from Crypto.Random import get_random_bytes
 from Crypto.Signature.pss import MGF1
 from Crypto.Hash import SHA256
 from Crypto.Util.strxor import strxor
 from Crypto.Util.Padding import pad, unpad
 
-from sage.all import crt, random_prime, log, Integers
+from sage.all import crt, random_prime, log, Integers, gcd, is_prime, ZZ
 
 
 BIT_LEN_PRIME = 1024  # 2048
@@ -69,13 +70,31 @@ def decrypt(c: int, p: int, q: int) -> bytes:
             m = root[:BYTE_LEN_MESSAGE_PART]
             h = mgf(r, BYTE_LEN_MESSAGE_PART)
             m = strxor(m, h)
-            return unpad(m, BYTE_LEN_MESSAGE_PART, style="iso7816")
-        except Exception as _:
+            m = unpad(m, BYTE_LEN_MESSAGE_PART, style="iso7816")
+
+            if len(m) > BYTE_LEN_MESSAGE_PART - REDUNDANCY - 1:
+                raise Exception("invalid length")
+            return m
+        except Exception:
             continue
     raise Exception("does not work :(")
 
 
-def decrypt_with_roots(n: int, roots: list[int]) -> bytes:
+def find_correct_root(n: int, message: bytes, roots: list[int]) -> int:
+    """
+    Attempt to find the root used for the known message
+
+    Args:
+        n (int): The modulus used.
+        message (bytes): The known message.
+        roots (list[int]): A list of candidate roots to try.
+
+    Returns:
+        int: The root that matched with the known message
+
+    Raises:
+        Exception: If no valid root yields a correctly‐formatted message.
+    """
     BYTE_LEN_MESSAGE_PART = int(log(n, 2)) // 8 - BYTE_LEN_RANDOMNESS
     for root in roots:
         try:
@@ -84,11 +103,44 @@ def decrypt_with_roots(n: int, roots: list[int]) -> bytes:
             m = tmp[:BYTE_LEN_MESSAGE_PART]
             h = mgf(r, BYTE_LEN_MESSAGE_PART)
             m = strxor(m, h)
-            return unpad(m, BYTE_LEN_MESSAGE_PART, style="iso7816")
+            m = unpad(m, BYTE_LEN_MESSAGE_PART, style="iso7816")
+
+            if len(m) > BYTE_LEN_MESSAGE_PART - REDUNDANCY - 1:
+                continue
+
+            if m == message:
+                return root
         except Exception:
             continue
 
     raise Exception("couldn't find a valid root")
+
+
+def find_diff_roots(n: int, roots: list[int]) -> Tuple[int, int]:
+    roots = list(set(roots))
+    for i in range(len(roots)):
+        for j in range(i + 1, len(roots)):
+            if (roots[i] + roots[j]) % n != 0:
+                return (roots[i], roots[j])
+    raise Exception("Only found roots which are inverse of each other")
+
+
+def find_pq(n: int, roots: list[int], verify: bool = True):
+    """
+    Find p and q using the following formula
+    x1 != -x2 (mod n)
+    x1 equiv a mod p, b mod p
+    x2 equiv a mod p, -b mod p
+
+    """
+    # ensure there are no duplicates
+    (x1, x2) = find_diff_roots(n, roots)
+    p = gcd(x1 - x2, n)
+    q = n / p
+    if verify:
+        if not is_prime(ZZ(p)) or not is_prime(ZZ(q)):
+            raise Exception("found none prime p or q")
+    return (p, q)
 
 
 def main():
@@ -114,10 +166,16 @@ def main_break():
         15126086220481393537776901557750580919159370546987737941638686637405776896417279801206100581342953309763940040805927991572662095620031808325155449884406866900327636285686219527051477688527345827192597677970811472479829795175220240749820988558864595744369218210287095932336858450197707167834752207395932147572072853204959261462287273435569042540392241155165876458123331943754887010305504040074117772763836288621722989924534044725486735081697696888779010838002118172122253158205668180791336685051027590789303162309003404019627544193505453480475599286704287905704394033421760968491118020158048021215583785909267829082994,
     ]
 
-    if decrypt_with_roots(n, roots) != m:
-        raise Exception("Unable to decipher the known cipher using the given roots")
+    root = find_correct_root(n, m, roots)
+
+    # Find a pair of roots where ri + rj mod n != 0
+    (p, q) = find_pq(n, roots)
+
+    if decrypt(c, p, q) != m:
+        raise Exception("Invalid p and q found")
 
     chall = 4393877302650311808760348842121446309084622700069390353052046258177263905917685768889076940277313220797024378877446493003728224359657582684849663461261442610425343235947894945545473183568482822873620924041079588087607036175128578654048427812111853372674329153000165290975856310984269112999733559143381253428008420830658511059615444348042380513889839760850621741225120778458099606443315924391486924991903916645864466166567644314437533125938672269193087647781177682718064890174394269228455318808197029907198052661253822158706578380787033838652937192403844724243497405630077867656676190147655991746880420709661229784905
+    print(decrypt(chall, p, q))
 
 
 if __name__ == "__main__":

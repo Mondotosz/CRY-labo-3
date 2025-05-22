@@ -134,16 +134,87 @@ def main():
 
 === Cassage grace aux racines
 
-#task(title: "Todo", [
-  Break it using the roots. The goal is to use $ZZ_p^* times ZZ_q^*$ and find
-  a multiple of p or q.
+Dans cette attaque, on connait:
+- $n$: le modulo
+- $(m,c)$: un message et son cipher
+- $x_1, x_2, x_3, x_4$: les quatre racines carrées du text chiffré.
+
+$
+cases(
+c &equiv x_1^2 space (mod n) & -> cases(
+    x_1 &= plus lambda_p space (mod p)\
+    x_1 &= plus lambda_q space (mod q)
+  )\
+c &equiv x_2^2 space (mod n) & -> cases(
+    x_2 &= plus lambda_p space (mod p)\
+    x_2 &= minus lambda_q space (mod q)
+  )\
+c &equiv x_3^2 space (mod n) & -> cases(
+    x_3 &= minus lambda_p space (mod p)\
+    x_3 &= plus lambda_q space (mod q)
+  )\
+c &equiv x_4^2 space (mod n) & -> cases(
+    x_4 &= minus lambda_p space (mod p)\
+    x_4 &= minus lambda_q space (mod q)
+  )
+)
+$
+
+On sait que dans nos $4$ racines, on a des paires $(x_i, x_j)$ où $x_i equiv -x_j space (mod n)$
+
+Cependant, on a besoins d'une paire qui ne respecte pas cette condition car notre
+but est de pouvoir isoler $p$ ou $q$.
+
+$
+x_1 space (mod n) &equiv (+lambda_p space (mod p), +lambda_q space (mod q))\
+x_2 space (mod n) &equiv (+lambda_p space (mod p), -lambda_q space (mod q))\
+x_1 plus x_2 space (mod n) &equiv (2 lambda_p space (mod p), 0 space (mod q))
+$
+
+On arrive a avoir une composante a $0$ et si l'on utilise le théorème des restes
+chinois on trouve que $x_1 + x_2$ est divisible par $q$
+
+$
+x_1 plus x_2 &equiv 2lambda_p (q^(-1) mod p) dot q + 0(p^(-1) mod q) dot p space (mod n)\
+  &equiv 2lambda_p (q^(-1) mod p) dot q space (mod n)
+$
+
+#info([
+  En pratique, on ne sait pas quelle racine correspond à quel $x_i$, on ne saura
+  pas quelle valeur sera $q$ et quelle valeur sera $p$ mais elles sont
+  interchangeables donc cela ne pose pas de problème.
+
+  De plus, on peut utiliser $x_1 plus.minus x_2$ car les deux cas nous permettent
+  d'isoler une composante.
 ])
+
+Vu que $2lambda_p$ est divisible par q, on peut utiliser le plus grand diviseur
+commun entre $2lambda_p$ et $n$ pour retrouver $q$
+
+$
+q = "gcd"(2lambda_p, n)
+p = n / q
+$
+
+Pour être sûr d'avoir trouvé les bonnes valeurs, on peut vérifier que $p$ et $q$
+sont bien premiers ainsi que de les utiliser pour déchiffrer le cipher connu pour
+s'assurer que l'on obtient bien notre text clair correspondant.
+
+Une fois que l'on a vérifié $p$ et $q$, on peut les utiliser pour déchiffrer le
+challenge.
+
+#goal([
+  Le message est: `Ni! Ni! Ni! We want a celebrity`
+])
+
 
 === Sur quel problème est basé la construction ?
 
 #task([
   todo
 ])
+
+La factorisation. Il s'agit d'un chiffrement style RSA.
 
 === A quoi sert la redondance ?
 
@@ -153,7 +224,3 @@ avoir la bonne taille. Il est possible qu'une racine nous donne un résultat
 conforme au padding (on a $1/256$ chance que le dernier byte soit `0x80`) qui
 serait un faux positif. Il faut donc verifier que notre padding fait au minimum
 `REDUNDANCY` Bytes pour considérer le résultat comme valide.
-
-#task([
-  Check avec le prof si on devrait utiliser la redondance lors du déchiffrement.
-])
