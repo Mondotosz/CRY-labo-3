@@ -4,10 +4,52 @@ from Crypto.Hash import SHA256
 from Crypto.Cipher import AES
 from base64 import b64encode, b64decode
 from pprint import pprint
+from time import perf_counter
+from functools import wraps
+from statistics import median
 
-from sage.all import EllipticCurve, GF, ZZ, discrete_log
+from sage.all import EllipticCurve, GF, ZZ, is_prime
 from sage.schemes.elliptic_curves.ell_point import EllipticCurvePoint_finite_field
 from sage.schemes.elliptic_curves.ell_finite_field import EllipticCurve_finite_field
+
+
+# Timing and benchmark wrapper generated using chatGPT
+def timeit(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        start = perf_counter()
+        result = func(*args, **kwargs)
+        duration = perf_counter() - start
+        print(f"{func.__name__!r} took {duration:.6f}s")
+        return result
+
+    return wrapper
+
+
+def benchmark(n):
+    """
+    Decorator factory that runs the wrapped function `n` times,
+    prints each run’s duration, then prints the median duration.
+    """
+
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            times = []
+            result = None
+            for i in range(1, n + 1):
+                t0 = perf_counter()
+                result = func(*args, **kwargs)
+                elapsed = perf_counter() - t0
+                times.append(elapsed)
+                print(f"Run {i:>2}/{n}: {elapsed:.6f}s")
+            m = median(times)
+            print(f"{func.__name__!r} median over {n} runs: {m:.6f}s")
+            return result
+
+        return wrapper
+
+    return decorator
 
 
 def params() -> Tuple[EllipticCurvePoint_finite_field, EllipticCurve_finite_field, int]:
@@ -19,6 +61,52 @@ def params() -> Tuple[EllipticCurvePoint_finite_field, EllipticCurve_finite_fiel
     n = 2550513000803
     E = EllipticCurve(GF(p), [a, b])
     G = E(gx, gy)
+    assert type(G) is EllipticCurvePoint_finite_field
+    assert (G * n).is_zero()
+    assert is_prime(n)
+    assert G.order() == n
+    return (G, E, n)
+
+
+def fixed_params() -> Tuple[
+    EllipticCurvePoint_finite_field, EllipticCurve_finite_field, int
+]:
+    p = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFED
+    K = GF(p)
+    a = K(0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEC)
+    d = K(0x52036CEE2B6FFE738CC740797779E89800700A4D4141D8AB75EB4DCA135978A3)
+    E = EllipticCurve(
+        K,
+        (
+            K(-1 / 48) * (a ^ 2 + 14 * a * d + d ^ 2),
+            K(1 / 864) * (a + d) * (-a ^ 2 + 34 * a * d - d ^ 2),
+        ),
+    )
+
+    def to_weierstrass(a, d, x, y):
+        return (
+            (5 * a + a * y - 5 * d * y - d) / (12 - 12 * y),
+            (a + a * y - d * y - d) / (4 * x - 4 * x * y),
+        )
+
+    G: EllipticCurvePoint_finite_field = E(
+        *to_weierstrass(
+            a,
+            d,
+            K(0x216936D3CD6E53FEC0A4E231FDD6DC5C692CC7609525A7B2C9562D608F25D51A),
+            K(0x6666666666666666666666666666666666666666666666666666666666666658),
+        )
+    )
+    E.set_order(
+        0x1000000000000000000000000000000014DEF9DEA2F79CD65812631A5CF5D3ED * 0x08
+    )
+    # This curve is a Weierstrass curve (SAGE does not support TwistedEdwards curves) birationally equivalent to the intended curve.
+    # You can use the to_weierstrass and to_twistededwards functions to convert the points.
+    n = G.order()
+
+    assert type(G) is EllipticCurvePoint_finite_field
+    assert (G * n).is_zero()
+    assert is_prime(n)
     return (G, E, n)
 
 
@@ -72,8 +160,7 @@ def encrypt(A, M, G, n):
     return (serialize_point_compressed(r * G), (cipher.nonce, ciphertext, tag))
 
 
-def decrypt(a, rg, nonce, ciphertext, tag):
-    (_, E, _) = params()
+def decrypt(a, E, rg, nonce, ciphertext, tag):
     rA = deserialize_point_compressed(rg, E) * a
     k = HKDF(serialize_point_compressed(rA), 32, b"", SHA256, num_keys=1)
     cipher = AES.new(k, AES.MODE_GCM, nonce=nonce)
@@ -102,7 +189,7 @@ def main_decrypt():
     (a, A) = keyGen(G, n)
     M = b"hello world!"
     (c_0, (nonce, ciphertext, tag)) = encrypt(A, M, G, n)
-    print(decrypt(a, c_0, nonce, ciphertext, tag))
+    print(decrypt(a, E, c_0, nonce, ciphertext, tag))
 
 
 def main_break():
@@ -128,10 +215,38 @@ def main_break():
     a = A.log(G)
     # r = G.discrete_log(rG)
     # r = rG.log(G)
-    print(decrypt(a, c_0, nonce, ciphertext, tag))
+    print(decrypt(a, E, c_0, nonce, ciphertext, tag))
+
+    @timeit
+    def find_a():
+        a = A.log(G)
+
+    @timeit
+    def find_r():
+        r = rG.log(G)
+
+    find_a()
+    find_r()
+
+
+@benchmark(100)
+def bench_params():
+    (G, E, n) = params()
+    (a, A) = keyGen(G, n)
+    A.log(G)
+
+
+def main_decrypt_fix():
+    (G, E, n) = fixed_params()
+    (a, A) = keyGen(G, n)
+    M = b"hello world!"
+    (c_0, (nonce, ciphertext, tag)) = encrypt(A, M, G, n)
+    print(decrypt(a, E, c_0, nonce, ciphertext, tag))
 
 
 if __name__ == "__main__":
     # main_encrypt()
-    # main_decrypt()
-    main_break()
+    main_decrypt()
+    # main_break()
+    # bench_params()
+    main_decrypt_fix()

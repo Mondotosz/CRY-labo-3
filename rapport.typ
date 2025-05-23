@@ -25,6 +25,11 @@
 #show link: underline
 #show raw: set text(font: "JetBrainsMono NFP")
 
+#let red(x) = text(
+  fill: color.red,
+  $#x$
+)
+
 = CRY: Labo 03
 
 == "Encryption"
@@ -203,7 +208,7 @@ s'assurer que l'on obtient bien notre text clair correspondant.
 Une fois que l'on a vérifié $p$ et $q$, on peut les utiliser pour déchiffrer le
 challenge.
 
-#goal([
+#goal(title: "Flag", [
   Le message est: `Ni! Ni! Ni! We want a celebrity`
 ])
 
@@ -315,8 +320,52 @@ valeurs que l'on a, on peut assez rapidement calculer le logarithme discret.
 
 === Cassage de la construction
 
-#goal([
+On a les equations suivantes avec les parties en rouge que l'on connait
+
+$
+red(A) &= a dot red(G)\
+red(r G) &= r dot red(G)\
+$
+
+On sait que la construction s'appuie sur la difficulté du logarithme discret.
+Donc avec de bonnes constantes on ne devrait pas être capables de calculer le
+logarithme dans une durée raisonnable.
+
+$
+a &= log_red(G)(red(A))\
+r &= log_red(G)(red(r G))
+$
+
+En l'occurrence, calculer $a$ par logarithme discret prend $approx 12s$ et
+calculer $r$ $approx 2s$ ce qui n'est clairement pas suffisant.
+
+En trouvant $r$, on est capables de déchiffrer cipher lié et en connaissant $a$
+on peut déchiffrer n'importe quel cipher qui utilise cette clé.
+
+#goal(title: "Flag", [
  `Nobody expects the spanish inquisition ! Our chief weapon is outcrops`
 ])
 
+#info([
+  Pour être sûr que le problème est lié aux paramètres plutôt qu'une mauvaise
+  clé, j'ai utilisé chatGPT pour benchmark le temps médian nécessaire pour
+  retrouver une clé aléatoire utilisant les paramètres.
+
+  - Médiane: 12.767188s
+  - Min: 3.049034s
+  - Max: 34.658409s
+
+  En l'occurrence, on peut partir du principe que l'on aura pas besoins de chance
+  pour casser l'algorithme.
+])
+
 === Correction de l'erreur
+
+A moins d'avoir raté un détail dans la fonction `encrypt`, la faiblesse de
+l'algorithme est dans les paramètres constants que l'on définit. Donc plutôt que
+de s'amuser à trouver une courbe elliptique qui nous parait correcte, on aura
+meilleurs temps d'utiliser une courbe connue comme suffisamment complexe.
+
+Du coup, pour fix le problème, j'ai implémenté la fonction `fixed_params` avec
+la même signature que `params` qui utilise la courbe ed25519. #link("https://neuromancer.sk/std/other/Ed25519", [J'ai récupéré le code pour les paramètres de ed25519]) et
+il manquait juste la valeur de $n$ qui est simplement l'ordre de $G$.
