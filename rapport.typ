@@ -220,3 +220,94 @@ avoir la bonne taille. Il est possible qu'une racine nous donne un résultat
 conforme au padding (on a $1/256$ chance que le dernier byte soit `0x80`) qui
 serait un faux positif. Il faut donc verifier que notre padding fait au minimum
 `REDUNDANCY` Bytes pour considérer le résultat comme valide.
+
+== Courbes Elliptiques
+
+=== Schema
+
+#task([
+  todo
+])
+
+=== Description mathématique
+
+Pour toute la partie mathématiques, nous avons les constantes publiques suivantes:
+- $n$: nombre premier
+- $E$: courbe elliptique
+- $G$: un point sur la courbe elliptique $E$
+
+==== Chiffrement
+
+Lors du chiffrement, on génère la paire de clés $(a,A)$ avec $a$ la clé privée
+choisie aléatoirement et $A$ la clé publique correspondante.
+
+$
+a &in ZZ_n\
+A &= a dot G
+$
+
+On tire un nombre aléatoire $r$ qui sera utilisé pour ce message $M$ uniquement.
+
+$
+r &in ZZ_n
+$
+
+On initialise une clé $k$ AES à partir de $r$ et $A$
+
+$
+k &= "HKDF"(r dot A)
+$
+
+On utilise AES en mode GCM pour générer le ciphertext et son tag. (On récupère
+aussi le nonce utilisé)
+
+$
+("nonce", "ciphertext", "tag") &= "AES_GCM"_k (M)
+$
+
+Et finalement on calcule $r G$ qui sera nécessaire pour déchiffrer le ciphertext.
+
+$
+r G &= r dot G
+$
+
+Si on combine tout, on a la formule suivante:
+
+$
+("c_0", ("nonce", "ciphertext", "tag")) &= (r dot G, "AES_GCM"_("HKDF"(r dot A))(M))
+$
+
+==== Déchiffrement
+
+Pour le déchiffrement, on part du principe que l'on connait toutes les valeurs
+en sortie du chiffrement ainsi que nos clés $(a, A)$.
+
+On a besoins de retrouver la clé $k$ qui est le résultat de $"HKDF"(r dot A)$.
+On ne connait pas $r$ directement mais on connait $r dot G$
+
+$
+A &= a dot G\
+r dot A &= r dot a dot G\
+r dot G &= r dot G\
+$
+
+En l'occurence la multiplication ici est commutative donc on peut simplement poser:
+
+$
+r dot G dot a = r dot A
+$
+
+Donc on peut trouver la clé $k$ pour AES_GCM et déchiffrer notre ciphertext.
+
+$
+m = "AES_GCM"^(-1)_("HKDF"("c_0" dot a))("nonce", "ciphertext", "tag")
+$
+
+
+=== Implémentation du déchiffrement
+
+=== Problème de l'algorithme
+
+=== Cassage de la construction
+
+=== Correction de l'erreur

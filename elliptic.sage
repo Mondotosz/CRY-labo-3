@@ -72,6 +72,14 @@ def encrypt(A, M, G, n):
     return (serialize_point_compressed(r * G), (cipher.nonce, ciphertext, tag))
 
 
+def decrypt(a, rg, nonce, ciphertext, tag):
+    (_, E, _) = params()
+    rA = deserialize_point_compressed(rg, E) * a
+    k = HKDF(serialize_point_compressed(rA), 32, b"", SHA256, num_keys=1)
+    cipher = AES.new(k, AES.MODE_GCM, nonce=nonce)
+    return cipher.decrypt_and_verify(ciphertext, tag)
+
+
 def main_encrypt():
     (G, E, n) = params()
     (a, A) = keyGen(G, n)
@@ -89,5 +97,14 @@ def main_encrypt():
     )
 
 
+def main_decrypt():
+    (G, E, n) = params()
+    (a, A) = keyGen(G, n)
+    M = b"hello world!"
+    (c_0, (nonce, ciphertext, tag)) = encrypt(A, M, G, n)
+    print(decrypt(a, c_0, nonce, ciphertext, tag))
+
+
 if __name__ == "__main__":
-    main_encrypt()
+    # main_encrypt()
+    main_decrypt()
