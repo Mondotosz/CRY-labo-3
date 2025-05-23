@@ -39,7 +39,7 @@ def serialize_point_compressed(P):
     return prefix + x_bytes
 
 
-def deserialize_point_compressed(data, E):
+def deserialize_point_compressed(data, E) -> EllipticCurvePoint_finite_field:
     # no error in this code
     prefix = data[0]
     if prefix not in (2, 3):
@@ -105,6 +105,33 @@ def main_decrypt():
     print(decrypt(a, c_0, nonce, ciphertext, tag))
 
 
+def main_break():
+    (G, E, n) = params()
+    serialized_public_key = b64decode(b"Azyzwrbtosf/8mammt4UnselajQ9GjSmr7j6PoLXbzb4")
+    A = deserialize_point_compressed(serialized_public_key, E)
+    c_0 = b64decode(
+        b"Ala4UlRJwW/OGXSd2vjiil+cAbe8BB6Icnmg1lY7od58"
+    )  # part rG of the ciphertext
+    rG = deserialize_point_compressed(c_0, E)
+    nonce = b64decode(b"Itf6J9b2Bf3GaS+X4nDYYg==")
+    ciphertext = b64decode(
+        b"ouQOI1X8w/CdAUizv+A7Npg7jppKF/HqXcZnKctSEuz4TtGPK/FDt1iyQWi7OBKZt63QmIeJwbUHrKa7N/WSQuvKvbT3"
+    )
+    tag = b64decode(b"vYXO0dhqATLPO+3dsMBd6A==")
+    # fortunately, both a and r can be found using the dicrete log.
+    # Only one of the values is needed and the computation can be expensive so
+    # the rest is commented for now. If we absolutely needed to optimize this
+    # we could use multithreading to race both computation and work with the
+    # first result.
+
+    # a = G.discrete_log(A)
+    a = A.log(G)
+    # r = G.discrete_log(rG)
+    # r = rG.log(G)
+    print(decrypt(a, c_0, nonce, ciphertext, tag))
+
+
 if __name__ == "__main__":
     # main_encrypt()
-    main_decrypt()
+    # main_decrypt()
+    main_break()

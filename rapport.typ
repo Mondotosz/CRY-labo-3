@@ -308,6 +308,15 @@ $
 
 === Problème de l'algorithme
 
+L'algorithme de chiffrement ne semble pas être problématique. Le problème est
+dans les paramètres constants qui contiennent des valeurs trop faibles. La
+construction est basée sur le problème du logarithme discret sauf qu'avec les
+valeurs que l'on a, on peut assez rapidement calculer le logarithme discret.
+
 === Cassage de la construction
+
+#goal([
+ `Nobody expects the spanish inquisition ! Our chief weapon is outcrops`
+])
 
 === Correction de l'erreur
