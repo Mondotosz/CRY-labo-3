@@ -210,10 +210,6 @@ challenge.
 
 === Sur quel problème est basé la construction ?
 
-#task([
-  todo
-])
-
 La factorisation. Il s'agit d'un chiffrement style RSA.
 
 === A quoi sert la redondance ?
