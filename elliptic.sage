@@ -1,12 +1,16 @@
+from typing import Tuple, Any
 from Crypto.Protocol.KDF import HKDF
 from Crypto.Hash import SHA256
 from Crypto.Cipher import AES
 from base64 import b64encode, b64decode
+from pprint import pprint
 
-from sage.all import EllipticCurve, GF, ZZ
+from sage.all import EllipticCurve, GF, ZZ, discrete_log
+from sage.schemes.elliptic_curves.ell_point import EllipticCurvePoint_finite_field
+from sage.schemes.elliptic_curves.ell_finite_field import EllipticCurve_finite_field
 
 
-def params():
+def params() -> Tuple[EllipticCurvePoint_finite_field, EllipticCurve_finite_field, int]:
     p = 50043062554237280172405801360375653460619548838234052036762494431728976610313
     a = 43327883319811199442996705732365163443043431995328598938729525921048235234958
     b = 45494814375791703888029144132071347443317277861841182091738819980027414195528
@@ -18,7 +22,9 @@ def params():
     return (G, E, n)
 
 
-def keyGen(G, n):
+def keyGen(
+    G: EllipticCurvePoint_finite_field, n: int
+) -> Tuple[Any, EllipticCurvePoint_finite_field]:
     a = ZZ.random_element(n)
     A = a * G
     return (a, A)
@@ -64,3 +70,24 @@ def encrypt(A, M, G, n):
     cipher = AES.new(k, AES.MODE_GCM)
     ciphertext, tag = cipher.encrypt_and_digest(M)
     return (serialize_point_compressed(r * G), (cipher.nonce, ciphertext, tag))
+
+
+def main_encrypt():
+    (G, E, n) = params()
+    (a, A) = keyGen(G, n)
+    M = b"hello world!"
+    serialized_public_key = serialize_point_compressed(A)
+    (c_0, (nonce, ciphertext, tag)) = encrypt(A, M, G, n)
+    pprint(
+        {
+            "serialized_public_key": b64encode(serialized_public_key),
+            "c_0": b64encode(c_0),
+            "nonce": b64encode(nonce),
+            "ciphertext": b64encode(ciphertext),
+            "tag": b64encode(tag),
+        }
+    )
+
+
+if __name__ == "__main__":
+    main_encrypt()
