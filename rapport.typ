@@ -397,4 +397,86 @@ il manquait juste la valeur de $n$ qui est simplement l'ordre de $G$.
 
 === Implémentation du déchiffrement et test
 
+Le déchiffrement de RSA ici est simple, la fonction est identique au chiffrement
+à l'exception que l'on utilise la méthode decrypt.
+
+Pour vérifier que cette fonction est correcte, on utilise la même approche que
+précédemment où on chiffre un message connu et on compare l'original avec le
+message déchiffré.
+
+```py
+def main_decrypt():
+    key = keygen()
+    M = b"Hello world!"
+    c = encrypt(M, key)
+    m = decrypt(c, key)
+    if m == M:
+        print(f"successfully decrypted: {m}")
+    else:
+        print("decrypted result doesn't match expected value.")
+        print(f"expected: {M}")
+        print(f"actual  : {m}")
+```
+
 === Cassage de la construction
+
+Il y a deux parties à considérer. Le chiffrement/déchiffrement ainsi que la
+génération de la clé.
+
+Pour le chiffrement/déchiffrement de la clé, on utilise le module `PKCS1_OAEP`
+de `pycryptodome`. Dans la documentation, on apprend que l'on a besoins de la
+clé privée pour déchiffrer et que les messages chiffrables doivent faire quelques
+centaines de bytes de moins que le modulo RSA.
+
+En cherchant un peu en ligne, on peut voir que PKCS\#1 OAEP est considéré comme
+cassé. La piste est intéressante mais avant de se lancer dessus, la génération
+de la clé peut être intéressante.
+
+Quand on regarde la documentation du module RSA de pycryptodome, la première
+chose que l'on remarque est que l'on peut facilement créer une clé avec:
+
+```py
+key = RSA.generate(3072)
+```
+
+La fonction `keygen` que l'on utilise est suspicieuse, les chances que
+l'implémentation custom soit problématique semble assez élevée.
+
+- $e = 65537$ pas de problème jusqu'ici, il s'agit d'une valeur standard.
+- $n = p dot q$ normal pour RSA.
+- $phi = (p-1)dot(q-1)$ normal pour RSA.
+- $2 < p <= 2^(1024)$, $p$ est premier. En l'occurrence, la fonction random_prime
+  nous garanti d'avoir un nombre premier proche du nombre de bits voulu.
+- $q$ est le prochain nombre premier après $p + r$ avec $r$ un nombre aléatoire
+  de $0$ à $15$ bits. Entre autre, on sait que $p < q$ et que $p$ et $q$ sont
+  relativement proches.
+
+A priori, le fait que $p$ et $q$ soient deux nombres premiers proches peut être
+problématique. Pour éviter que $p$ et $q$ se suivent directement dans l'ensemble
+des nombres premiers, on ajoute un offset entre $0$ et $2^(15)$. On sait que
+$p$ est une valeur de $approx 1024$ bits. La distribution des nombres premiers
+est dense en s'approchant de $0$ et s'espace en s'approchant de $infinity$.
+
+En l'occurrence, Il y a beaucoup de chances que $p$ et $q$ partagent un grands
+nombre de bits de poids fort.
+
+En partant du principe que l'on peut attaquer notre construction de manière
+similaire au challenge sur les courbes elliptiques, on cherche à attaquer le
+problème sur lequel se base la construction. On veut donc essayer de factoriser
+$n$. Le problème est que $n$ trop grand pour qu'on puisse simplement utiliser
+la fonction de factorisation de sage, il faut donc se baser sur le fait que
+p et q soient proches l'un de l'autre.
+
+En cherchant #link("https://www.google.com/search?q=RSA+factorization+attack", ["RSA factorization attack"])
+sur google, on trouve des pistes. Surtout avec #link("https://websites.nku.edu/~christensen/Mathematical%20attack%20on%20RSA.pdf",[un papier qui propose plusieurs algorithmes mathématiques pour attaquer RSA.])
+L'algorithme de factorisation de Fermat en particulier permet de factoriser la
+différence entre deux carrés. Le fait que $p$ et $q$ soient relativement proches
+est avantageux pour cette approche.
+
+On peut trouver un pseudocode de la factorisation de Fermat sur Wikipedia et
+l'implémenter en sage. En testant avec la clé publique fournie, on arrive a
+rapidement factoriser $n$ et donc recréer la clé privée.
+
+#goal(title: "Flag", [
+`What is your quest? To seek the holy grail. What is your favorite color? departmental`
+])
