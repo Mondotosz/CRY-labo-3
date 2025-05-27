@@ -102,7 +102,7 @@ def fixed_params() -> Tuple[
     )
     # This curve is a Weierstrass curve (SAGE does not support TwistedEdwards curves) birationally equivalent to the intended curve.
     # You can use the to_weierstrass and to_twistededwards functions to convert the points.
-    n = G.order()
+    n = 0x1000000000000000000000000000000014DEF9DEA2F79CD65812631A5CF5D3ED
 
     assert type(G) is EllipticCurvePoint_finite_field
     assert (G * n).is_zero()
@@ -189,7 +189,13 @@ def main_decrypt():
     (a, A) = keyGen(G, n)
     M = b"hello world!"
     (c_0, (nonce, ciphertext, tag)) = encrypt(A, M, G, n)
-    print(decrypt(a, E, c_0, nonce, ciphertext, tag))
+    m = decrypt(a, E, c_0, nonce, ciphertext, tag)
+    if m == M:
+        print(f"successfully decrypted: {m}")
+    else:
+        print("decrypted result doesn't match expected value.")
+        print(f"expected: {M}")
+        print(f"actual  : {m}")
 
 
 def main_break():
@@ -219,11 +225,11 @@ def main_break():
 
     @timeit
     def find_a():
-        a = A.log(G)
+        A.log(G)
 
     @timeit
     def find_r():
-        r = rG.log(G)
+        rG.log(G)
 
     find_a()
     find_r()
@@ -233,7 +239,9 @@ def main_break():
 def bench_params():
     (G, E, n) = params()
     (a, A) = keyGen(G, n)
-    A.log(G)
+
+    if A.log(G) != a:
+        raise Exception("found the wrong log ?")
 
 
 def main_decrypt_fix():

@@ -309,7 +309,27 @@ m = "AES_GCM"^(-1)_("HKDF"("c_0" dot a))("nonce", "ciphertext", "tag")
 $
 
 
-=== Implémentation du déchiffrement
+=== Implémentation du déchiffrement et test
+
+Pour tester le déchiffrement, on peut simplement chiffrer un message, le
+déchiffrer et comparer le résultat obtenu. La fonction de chiffrement n'a pas
+été modifiée donc un résultat identique confirme que l'on a utilisé la bonne clé
+pour le déchiffrement.
+
+```py
+def main_decrypt():
+    (G, E, n) = params()
+    (a, A) = keyGen(G, n)
+    M = b"hello world!"
+    (c_0, (nonce, ciphertext, tag)) = encrypt(A, M, G, n)
+    m = decrypt(a, E, c_0, nonce, ciphertext, tag)
+    if m == M:
+        print(f"successfully decrypted: {m}")
+    else:
+        print("decrypted result doesn't match expected value.")
+        print(f"expected: {M}")
+        print(f"actual  : {m}")
+```
 
 === Problème de l'algorithme
 
@@ -317,6 +337,9 @@ L'algorithme de chiffrement ne semble pas être problématique. Le problème est
 dans les paramètres constants qui contiennent des valeurs trop faibles. La
 construction est basée sur le problème du logarithme discret sauf qu'avec les
 valeurs que l'on a, on peut assez rapidement calculer le logarithme discret.
+
+En particulier, on remarque que $n$ est un nombre premier de 42 bits et $n$
+correspond à l'ordre de $G$. En comparaison, le $n$ de ed25519 fait $253$ bits.
 
 === Cassage de la construction
 
@@ -369,3 +392,9 @@ meilleurs temps d'utiliser une courbe connue comme suffisamment complexe.
 Du coup, pour fix le problème, j'ai implémenté la fonction `fixed_params` avec
 la même signature que `params` qui utilise la courbe ed25519. #link("https://neuromancer.sk/std/other/Ed25519", [J'ai récupéré le code pour les paramètres de ed25519]) et
 il manquait juste la valeur de $n$ qui est simplement l'ordre de $G$.
+
+== RSA
+
+=== Implémentation du déchiffrement et test
+
+=== Cassage de la construction
