@@ -445,7 +445,7 @@ l'implémentation custom soit problématique semble assez élevée.
 - $e = 65537$ pas de problème jusqu'ici, il s'agit d'une valeur standard.
 - $n = p dot q$ normal pour RSA.
 - $phi = (p-1)dot(q-1)$ normal pour RSA.
-- $2 < p <= 2^(1024)$, $p$ est premier. En l'occurrence, la fonction random_prime
+- $2 < p <= 2^(1048)$, $p$ est premier. En l'occurrence, la fonction random_prime
   nous garanti d'avoir un nombre premier proche du nombre de bits voulu.
 - $q$ est le prochain nombre premier après $p + r$ avec $r$ un nombre aléatoire
   de $0$ à $15$ bits. Entre autre, on sait que $p < q$ et que $p$ et $q$ sont
@@ -454,7 +454,7 @@ l'implémentation custom soit problématique semble assez élevée.
 A priori, le fait que $p$ et $q$ soient deux nombres premiers proches peut être
 problématique. Pour éviter que $p$ et $q$ se suivent directement dans l'ensemble
 des nombres premiers, on ajoute un offset entre $0$ et $2^(15)$. On sait que
-$p$ est une valeur de $approx 1024$ bits. La distribution des nombres premiers
+$p$ est une valeur de $approx 1048$ bits. La distribution des nombres premiers
 est dense en s'approchant de $0$ et s'espace en s'approchant de $infinity$.
 
 En l'occurrence, Il y a beaucoup de chances que $p$ et $q$ partagent un grands
@@ -479,4 +479,12 @@ rapidement factoriser $n$ et donc recréer la clé privée.
 
 #goal(title: "Flag", [
 `What is your quest? To seek the holy grail. What is your favorite color? departmental`
+])
+
+#info(title: "Note", [
+  Après discussion en cours, il est possible de bruteforce $p$ et $q$ car la
+  différence entre les deux est relativement faible ($approx 16$ bits.) De plus
+  le fait que $p$ et $q$ soient proches implique qu'ils sont aussi proches de
+  $sqrt(n)$. Le bruteforce est assez simple à implémenter car on part simplement
+  de $sqrt(n)$ et on teste les nombres premiers suivants jusqu'à tomber sur $q$.
 ])

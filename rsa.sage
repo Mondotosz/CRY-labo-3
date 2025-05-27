@@ -5,16 +5,7 @@ from Crypto.Cipher import PKCS1_OAEP
 from Crypto.PublicKey import RSA
 from base64 import b64decode, b64encode
 
-from sage.all import (
-    random_prime,
-    next_prime,
-    ZZ,
-    inverse_mod,
-    gcd,
-    isqrt,
-    is_square,
-    factor,
-)
+from sage.all import random_prime, next_prime, ZZ, inverse_mod, gcd, isqrt, is_square
 
 
 def encrypt(m: bytes, key: RSA.RsaKey) -> bytes:
@@ -87,6 +78,31 @@ def main_break():
     print(decrypt(c, priv_key))
 
 
+def main_brute_force():
+    key_data = b"-----BEGIN PUBLIC KEY-----\nMIIBKDANBgkqhkiG9w0BAQEFAAOCARUAMIIBEAKCAQcA3KThls9LRMAbCNt4OdSx\nhlVvY7MOGaUo5Ug3lGL2w/BmR6C396j32/+tRibWrryJYv78xHFulNYqmR7ivvRU\nACc3KOxU+mR2f4/e9si18qSK0OkqZ5nzl4GTMXfMz4TulOek4Sbo3j4oukHNrSCi\nLX5qhfnSVRCHQD6vXEIqlEhks9FuFnAMcC1lg6FM5yODBe9SJaiMY0yq28eca6u/\ngHRM0VyMh7b61vizRXDb85U0n0dV9AIooMpITJFJz2yPM0L7PziwpofRKR4JnllV\n3UwFuXKAC5BS7gUpqdvpW/alzk90Q11e/78ry8YM2gT0wSZ9nhQqDrboMQXni49f\n8BRplcEtAQIDAQAB\n-----END PUBLIC KEY-----"
+    pub_key = RSA.import_key(key_data)
+    n = pub_key.n
+
+    q = isqrt(n)
+    while n % q != 0:
+        q = next_prime(q)
+
+    p = n / q
+
+    e = 65537
+    phi = (p - 1) * (q - 1)
+    priv_key = RSA.construct(
+        (int(pub_key.n), int(e), int(inverse_mod(e, phi))), consistency_check=True
+    )
+
+    c = b64decode(
+        b"BC/TJMwJydzYQ/L4Z7/Obb89q0EMHpQVsHbxwoiz2AiQnYr2tiJaf5RYoRKR84ly9MX2axSRoaJtrZXlQLx8LdsjrBosUhJyYwgrbh15z3DAQk73LOJykUwX6hjy0I2UITtPA6uqoBL8XYDWgb9xgtCs7q7nLFovDCGxJNwwV3spQHmFDhwC87lO5BJopMidgQlE+N3lp8JP0HMpYCR04bwCs8BTYpScuW2c5Mhz5bLBNEiimbrPR/0THbd5WDU7CFpVKvgdkbvnz+ldXNT9AL97v1Rt/7Wc1n7ty6SJod7tMdTzpZd7UqpLE0JMO4vUqlx+SKidNWhAq6pD3i4aIiBzM7JfnA=="
+    )
+
+    print(decrypt(c, priv_key))
+
+
 if __name__ == "__main__":
     # main_decrypt()
     main_break()
+    main_brute_force()
