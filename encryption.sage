@@ -117,7 +117,9 @@ def find_correct_root(n: int, message: bytes, roots: list[int]) -> int:
 
 
 def find_diff_roots(n: int, roots: list[int]) -> Tuple[int, int]:
+    # remove duplicates
     roots = list(set(roots))
+    # find the first pair of roots which arent equivalent
     for i in range(len(roots)):
         for j in range(i + 1, len(roots)):
             if (roots[i] + roots[j]) % n != 0:
@@ -126,14 +128,6 @@ def find_diff_roots(n: int, roots: list[int]) -> Tuple[int, int]:
 
 
 def find_pq(n: int, roots: list[int], verify: bool = True):
-    """
-    Find p and q using the following formula
-    x1 != -x2 (mod n)
-    x1 equiv a mod p, b mod p
-    x2 equiv a mod p, -b mod p
-
-    """
-    # ensure there are no duplicates
     (x1, x2) = find_diff_roots(n, roots)
     p = gcd(x1 - x2, n)
     q = n / p
@@ -166,7 +160,7 @@ def main_break():
         15126086220481393537776901557750580919159370546987737941638686637405776896417279801206100581342953309763940040805927991572662095620031808325155449884406866900327636285686219527051477688527345827192597677970811472479829795175220240749820988558864595744369218210287095932336858450197707167834752207395932147572072853204959261462287273435569042540392241155165876458123331943754887010305504040074117772763836288621722989924534044725486735081697696888779010838002118172122253158205668180791336685051027590789303162309003404019627544193505453480475599286704287905704394033421760968491118020158048021215583785909267829082994,
     ]
 
-    root = find_correct_root(n, m, roots)
+    # root = find_correct_root(n, m, roots)
 
     # Find a pair of roots where ri + rj mod n != 0
     (p, q) = find_pq(n, roots)

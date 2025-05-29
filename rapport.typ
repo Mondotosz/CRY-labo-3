@@ -36,9 +36,13 @@
 
 === Schema
 
-#task([
-  fill
+#figure(image("fig/encryption.png"), caption: [
+  Schema de la construction
 ])
+
+Comme explicité dans le schéma, la partie gauche travaille avec des bytes alors
+que la partie de droite considère la valeur comme un entier de plusieurs
+centaines de bits.
 
 === Description mathématique
 
@@ -54,7 +58,7 @@ On pose:
 
 Ce qui nous permet de calculer le cipher avec:
 $
-c &= (((m || "pad") xor "mgf"(r,l)) || r)^2 space (mod n)
+c &= (("pad"(m) xor "mgf"(r,l)) || r)^2 space (mod n)
 $
 
 ==== Déchiffrement
@@ -79,7 +83,7 @@ $
 
 On va obtenir trouver 4 racines et on sait que:
 $
-  ((m || "pad") xor "mgf"(r,l)) || r space (mod n) in X
+  ("pad"(m) xor "mgf"(r,l)) || r space (mod n) in X
 $
 
 Donc pour chaque valeur dans $X$, on va tester les étapes suivantes:
@@ -88,11 +92,11 @@ Donc pour chaque valeur dans $X$, on va tester les étapes suivantes:
   droite de taille $lambda$
   $
   x &in X\
-  ((m || "pad") xor "mgf"(r,l), r) &= "split"(x,l)
+  ("pad"(m) xor "mgf"(r,l) , space r) &= "split"(x,l)
   $
 2. On connait $r$ et $l$, on arrive donc à calculer $"mgf"(r,l)$
   $
-  m || "pad" &= ((m || "pad") xor "mgf"(r,l)) xor "mgf"(r,l)
+  "pad"(m) &= ( "pad"(m) xor "mgf"(r,l)) xor "mgf"(r,l)
   $
 3. Vu que le message contient un padding aux normes iso7816, on peut utiliser la
   fonction unpad pour récupérer le message ou faire remonter une erreur si le
@@ -100,19 +104,19 @@ Donc pour chaque valeur dans $X$, on va tester les étapes suivantes:
   racine. Donc on va itérer sur nos racines jusqu'à trouver la bonne ou les
   exhauster.)
   $
-  m &= "unpad"(m || "pad")
+  m &= "unpad"("pad"(m))
   $
 
 On peut représenter le déchiffrement par la formule suivante:
 
 $
-m equiv ((sqrt(c) - r) xor "mgf"(r,l)) - "pad" space (mod n)
+m equiv "unpad"((sqrt(c) - r) xor "mgf"(r,l)) space (mod n)
 $
 
 #info(title: "Note", [
   En représentant un une seule formule, on perd la notion des 4 racines à tester
-  ainsi que le "split" et "unpad" qui sont représentés par un simple $minus$ 
-  indiquant l'extraction de ces valeurs
+  ainsi que le "split" qui est représentés par un simple $minus$ indiquant
+  l'extraction de $r$ et $"pad"(m) xor "mgf"(r,l)$
 ])
 
 === Test de l'implémentation du déchiffrement
@@ -186,7 +190,7 @@ $
 
 #info([
   En pratique, on ne sait pas quelle racine correspond à quel $x_i$, on ne saura
-  pas quelle valeur sera $q$ et quelle valeur sera $p$ mais elles sont
+  pas non plus quelle valeur sera $q$ et quelle valeur sera $p$ mais elles sont
   interchangeables donc cela ne pose pas de problème.
 
   De plus, on peut utiliser $x_1 plus.minus x_2$ car les deux cas nous permettent
@@ -215,16 +219,39 @@ challenge.
 
 === Sur quel problème est basé la construction ?
 
-La factorisation. Il s'agit d'un chiffrement style RSA.
+La factorisation.
+
+La clé publique est le résultat de la multiplication entre deux nombres premiers.
+Si on arrive à factoriser la clé publique on obtient la clé privée.
+
+Si on prends la partie du chiffrement, la difficulté vient du fait que l'on doit
+trouver les racines dans le modulo $n$ qui est composite. Pour les trouver il
+faudrait factoriser $n$, ce qui revient au problème initial.
 
 === A quoi sert la redondance ?
 
-A priori, la norme iso7816 pour le padding ne définit pas de taille nécessaire.
-Le padding fonctionne en ajoutant un Byte `0x80` suivi de Bytes `0x0` jusqu'à
-avoir la bonne taille. Il est possible qu'une racine nous donne un résultat
-conforme au padding (on a $1/256$ chance que le dernier byte soit `0x80`) qui
-serait un faux positif. Il faut donc verifier que notre padding fait au minimum
-`REDUNDANCY` Bytes pour considérer le résultat comme valide.
+La norme iso7816 utilisée pour le padding ajoute un Byte `0x80` suivi d'autant
+de bits à $0$ nécessaires pour avoir un résultat dont la taille est un multiple
+de la taille passée en entrée.
+
+Dans l'algorithme de chiffrement que l'on a, si le message fait exactement la
+taille passée à la fonction de padding on aura un résultat qui fait le double de
+celui souhaité et posera des problèmes lors du xor. Le `-1` dans la condition
+semble être responsable d'éviter ce problème.
+
+La raison pour laquelle on a besoins de redondance est que pour que le padding
+soit considéré comme valid il faut juste que la valeur suive le pattern suivant:
+```js /(10{7})0*$/ ``` (le groupe de capture représente `0x80`). Sans ajouter
+de redondance, les chances qu'une mauvaise racine nous amène sur un résultat avec
+un padding valid sont suffisamment élevée pour poser des problèmes. La variable
+`REDUNDANCY` est donc la pour éviter ce problème en forçant le résultat à
+correspondre à ```js /(10{87})0*$/```, ce qui est peu probable.
+
+#info(title: "Note", [
+  Une personne qui ne connait pas la clé privée n'est pas capable de déterminer
+  si une racine peut amener la confusion donc cette redondance est la seule
+  manière d'éviter le problème dans l'algorithme directement.
+])
 
 == Courbes Elliptiques
 
