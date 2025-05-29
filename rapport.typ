@@ -37,7 +37,7 @@
 === Schema
 
 #figure(image("fig/encryption.png"), caption: [
-  Schema de la construction
+  Schéma de la construction
 ])
 
 Comme explicité dans le schéma, la partie gauche travaille avec des bytes alors
@@ -140,6 +140,8 @@ def main():
     else:
         print(f"found : {res}")
 ```
+
+#pagebreak()
 
 === Cassage grace aux racines
 
@@ -257,16 +259,14 @@ correspondre à ```js /(10{87})0*$/```, ce qui est peu probable.
 
 === Schema
 
-#task([
-  todo
-])
+#figure(image("fig/elliptic.png"), caption: "Schéma de la construction elliptique")
 
 === Description mathématique
 
 Pour toute la partie mathématiques, nous avons les constantes publiques suivantes:
 - $n$: nombre premier
 - $E$: courbe elliptique
-- $G$: un point sur la courbe elliptique $E$
+- $G$: un point sur la courbe elliptique $E$ et d'ordre $n$
 
 ==== Chiffrement
 
@@ -284,7 +284,7 @@ $
 r &in ZZ_n
 $
 
-On initialise une clé $k$ AES à partir de $r$ et $A$
+On dérive une clé $k$ pour AES à partir de $r$ et $A$
 
 $
 k &= "HKDF"(r dot A)
@@ -323,7 +323,7 @@ r dot A &= r dot a dot G\
 r dot G &= r dot G\
 $
 
-En l'occurence la multiplication ici est commutative donc on peut simplement poser:
+En l'occurrence la multiplication ici est commutative donc on peut simplement poser:
 
 $
 r dot G dot a = r dot A
@@ -389,8 +389,8 @@ $
 En l'occurrence, calculer $a$ par logarithme discret prend $approx 12s$ et
 calculer $r$ $approx 2s$ ce qui n'est clairement pas suffisant.
 
-En trouvant $r$, on est capables de déchiffrer cipher lié et en connaissant $a$
-on peut déchiffrer n'importe quel cipher qui utilise cette clé.
+En trouvant $r$, on est capables de déchiffrer le cipher lié et en connaissant
+$a$ on peut déchiffrer n'importe quel cipher qui utilise cette clé.
 
 #goal(title: "Flag", [
  `Nobody expects the spanish inquisition ! Our chief weapon is outcrops`
@@ -418,7 +418,11 @@ meilleurs temps d'utiliser une courbe connue comme suffisamment complexe.
 
 Du coup, pour fix le problème, j'ai implémenté la fonction `fixed_params` avec
 la même signature que `params` qui utilise la courbe ed25519. #link("https://neuromancer.sk/std/other/Ed25519", [J'ai récupéré le code pour les paramètres de ed25519]) et
-il manquait juste la valeur de $n$ qui est simplement l'ordre de $G$.
+il manquait juste la valeur de $n$ qui est simplement l'ordre de $G$. ($n$ est
+explicité dans les paramètres trouvés sur la page, le snippet en sage ne le
+stockait pas directement dans une variable mais l'utilisait comme valeur immédiate)
+
+#pagebreak()
 
 == RSA
 
@@ -450,14 +454,16 @@ def main_decrypt():
 Il y a deux parties à considérer. Le chiffrement/déchiffrement ainsi que la
 génération de la clé.
 
-Pour le chiffrement/déchiffrement de la clé, on utilise le module `PKCS1_OAEP`
+Pour le chiffrement/déchiffrement du message, on utilise le module `PKCS1_OAEP`
 de `pycryptodome`. Dans la documentation, on apprend que l'on a besoins de la
 clé privée pour déchiffrer et que les messages chiffrables doivent faire quelques
 centaines de bytes de moins que le modulo RSA.
 
-En cherchant un peu en ligne, on peut voir que PKCS\#1 OAEP est considéré comme
-cassé. La piste est intéressante mais avant de se lancer dessus, la génération
-de la clé peut être intéressante.
+En cherchant un peu en ligne, on peut voir que certaines versions de PKCS\#1 sont
+vulnérables a des attaques tel que "adaptive chosen-ciphertext attack". La piste
+est intéressante mais probablement pas applicable dans notre cas.Avant d'aller
+creuser trop loins dans cette direction on a meilleur temps de s'intéresser à la
+génération de la clé.
 
 Quand on regarde la documentation du module RSA de pycryptodome, la première
 chose que l'on remarque est que l'on peut facilement créer une clé avec:
@@ -467,13 +473,13 @@ key = RSA.generate(3072)
 ```
 
 La fonction `keygen` que l'on utilise est suspicieuse, les chances que
-l'implémentation custom soit problématique semble assez élevée.
+l'implémentation custom soit problématique sembles assez élevées.
 
 - $e = 65537$ pas de problème jusqu'ici, il s'agit d'une valeur standard.
 - $n = p dot q$ normal pour RSA.
 - $phi = (p-1)dot(q-1)$ normal pour RSA.
-- $2 < p <= 2^(1048)$, $p$ est premier. En l'occurrence, la fonction random_prime
-  nous garanti d'avoir un nombre premier proche du nombre de bits voulu.
+- $p$ est un nombre premier aléatoire d'environ $1048$ bits. Toujours normal pour
+  RSA.
 - $q$ est le prochain nombre premier après $p + r$ avec $r$ un nombre aléatoire
   de $0$ à $15$ bits. Entre autre, on sait que $p < q$ et que $p$ et $q$ sont
   relativement proches.
@@ -483,9 +489,6 @@ problématique. Pour éviter que $p$ et $q$ se suivent directement dans l'ensemb
 des nombres premiers, on ajoute un offset entre $0$ et $2^(15)$. On sait que
 $p$ est une valeur de $approx 1048$ bits. La distribution des nombres premiers
 est dense en s'approchant de $0$ et s'espace en s'approchant de $infinity$.
-
-En l'occurrence, Il y a beaucoup de chances que $p$ et $q$ partagent un grands
-nombre de bits de poids fort.
 
 En partant du principe que l'on peut attaquer notre construction de manière
 similaire au challenge sur les courbes elliptiques, on cherche à attaquer le
